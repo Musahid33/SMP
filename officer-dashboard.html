@@ -881,16 +881,16 @@
             fetchGlobalMetrics();
         });
 
-                                async function fetchGlobalMetrics() {
+        async function fetchGlobalMetrics() {
             try {
                 const { data, error } = await _supabase.from('safety_reports').select('status');
                 if (error) throw error;
                 if(data) {
                     document.getElementById('countTotal').innerText = data.length;
-                    document.getElementById('countProgress').innerText = data.filter(r => r.status === 'Open' || r.status === 'In Progress').length;
+                    document.getElementById('countProgress').innerText = data.filter(r => r.status === 'In Progress').length;
                     document.getElementById('countClosed').innerText = data.filter(r => r.status === 'Closed').length;
                 }
-            } catch(e) { console.error('Metrics Error:', e); }
+            } catch(e) { console.error(e); }
         }
 
         async function openInspectionTracker(type, secondType = "") {
@@ -943,23 +943,30 @@
             finally { btn.disabled = false; btn.textContent = 'Submit to Live Review Desk'; }
         }
 
-                                async function fetchLiveSystemRecords() {
+                async function fetchLiveSystemRecords() {
             const container = document.getElementById('liveRecordsContainer');
-            container.innerHTML = `<p class="text-slate-500 italic animate-pulse text-[10px] text-center">Accessing real-time vault...</p>`;
+            container.innerHTML = `<p class="text-slate-500 italic animate-pulse text-[10px] text-center p-4">Accessing real-time vault...</p>`;
             
             try {
+                // Hum database se saari reports utha rahe hain
                 let query = _supabase.from('safety_reports').select('*');
+                
+                // Super Match: Use ilike for partial matching to avoid space/case issues
                 if(trackerSecondaryType) {
-                    query = query.or(`report_type.eq."${currentActiveTrackerType}",report_type.eq."${trackerSecondaryType}"`);
+                    query = query.or(`report_type.ilike.%${currentActiveTrackerType}%,report_type.ilike.%${trackerSecondaryType}%`);
                 } else {
-                    query = query.eq('report_type', currentActiveTrackerType);
+                    query = query.ilike('report_type', `%${currentActiveTrackerType}%`);
                 }
                 
                 const { data, error } = await query.order('created_at', { ascending: False });
                 if (error) throw error;
 
                 if (!data || data.length === 0) {
-                    container.innerHTML = `<p class="text-slate-600 text-[11px] p-3 bg-slate-950 rounded-xl text-center">🚫 No worker entries logged under this module yet.</p>`;
+                    container.innerHTML = `
+                        <div class="text-center p-6 bg-slate-950/50 rounded-2xl border border-dashed border-slate-800">
+                            <p class="text-slate-500 text-[11px]">🚫 No entries found for "${currentActiveTrackerType}"</p>
+                            <p class="text-[9px] text-slate-600 mt-1">Try reporting from the home page first.</p>
+                        </div>`;
                     return;
                 }
 
@@ -972,68 +979,91 @@
                     const actionStatus = rec.action_status || rec.status || 'Open';
 
                     return `
-                        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 shadow-inner text-left mb-3">
-                            <div class="flex justify-between items-start border-b border-slate-900 pb-1.5">
+                        <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 shadow-xl mb-3 text-left">
+                            <div class="flex justify-between items-start">
                                 <div>
                                     <span class="font-black text-white text-[12px] block">${rec.worker_name || 'Anonymous Submission'}</span>
-                                    <span class="text-slate-500 text-[9px]">Emp ID: ${rec.employee_id || 'N/A'} • Dept: ${rec.department || 'N/A'}</span>
+                                    <span class="text-slate-500 text-[9px] font-bold">EMP: ${rec.employee_id || 'N/A'}</span>
                                 </div>
-                                <span class="border px-2 py-0.5 rounded text-[8px] font-black uppercase ${badgeColor}">${rec.status || 'Open'}</span>
+                                <span class="border px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${badgeColor}">${rec.status || 'Open'}</span>
                             </div>
 
-                            <div class="grid grid-cols-1 gap-0.5 text-[9px] font-bold text-slate-400 bg-slate-900/40 p-1.5 rounded-lg">
+                            <div class="grid grid-cols-1 gap-1 text-[9px] font-bold text-slate-400 bg-slate-900/30 p-2 rounded-xl">
                                 <div>📍 Location: <span class="text-slate-200">${rec.location || 'N/A'}</span></div>
-                                <div>🕐 Date/Time: <span class="text-slate-200">${recordDate}</span></div>
-                                ${rec.severity_rating ? `<div class="text-rose-400">⚠️ Risk: <span class="font-black">${rec.severity_rating}</span></div>` : ''}
+                                <div>🕐 Logged: <span class="text-slate-200">${recordDate}</span></div>
                             </div>
 
-                            <div class="space-y-1 text-[11px]">
-                                <p class="text-slate-300 leading-relaxed"><strong class="text-slate-500 text-[10px] block uppercase">📝 Description:</strong>${rec.description}</p>
-                                ${rec.immediate_action ? `<p class="text-emerald-400/90 bg-emerald-950/10 p-1.5 rounded border border-emerald-900/30 leading-tight"><strong class="text-emerald-600 text-[10px] block uppercase">⚡ Immediate Action Taken:</strong>${rec.immediate_action}</p>` : ''}
+                            <div class="text-[11px] leading-relaxed">
+                                <p class="text-slate-400"><strong class="text-slate-600 text-[9px] uppercase block">📝 Incident Details:</strong>${rec.description}</p>
                             </div>
 
-                            <div class="flex items-center gap-1.5 text-[10px] pt-1">
-                                <span class="text-slate-500 font-bold uppercase tracking-wider">🎯 Current Action:</span>
-                                <span class="text-white font-black uppercase bg-slate-800 px-1.5 py-0.5 rounded">${actionStatus}</span>
-                            </div>
-
-                            <div class="pt-2 border-t border-slate-800/60 flex gap-2">
-                                <select id="actionSelect_${rec.id}" class="flex-1 text-[10px] bg-slate-900 border border-slate-800 p-1.5 rounded text-white font-bold focus:outline-amber-500">
+                            <div class="pt-3 border-t border-slate-800 flex gap-2">
+                                <select id="actionSelect_${rec.id}" class="flex-1 text-[10px] bg-slate-900 border border-slate-800 p-2 rounded-lg text-white font-bold">
                                     <option value="Open" ${actionStatus === 'Open' ? 'selected' : ''}>🔴 Open</option>
-                                    <option value="Work in Progress" ${actionStatus === 'Work in Progress' ? 'selected' : ''}>🟡 In Progress</option>
+                                    <option value="In Progress" ${actionStatus === 'In Progress' ? 'selected' : ''}>🟡 In Progress</option>
                                     <option value="Closed" ${actionStatus === 'Closed' ? 'selected' : ''}>🟢 Closed</option>
                                 </select>
-                                <button onclick="updateRecordStatus(${rec.id})" class="bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] px-3 py-1.5 rounded-lg transition whitespace-nowrap cursor-pointer">
-                                    Update
-                                </button>
+                                <button onclick="updateRecordStatus(${rec.id})" class="bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] px-4 py-2 rounded-lg transition">Update</button>
                             </div>
                         </div>
                     `;
                 }).join('');
+                
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                
             } catch(err) {
-                container.innerHTML = `<p class="text-rose-500 text-[10px] text-center p-4">Error: ${err.message}</p>`;
+                container.innerHTML = `<p class="text-rose-500 text-[10px] text-center p-4">⚠️ Database Sync Error: ${err.message}</p>`;
             }
         }
 
         // 🎯 UPDATE RECORD STATUS / ACTION
-                                async function updateRecordStatus(id) {
-            const newStatus = document.getElementById(`actionSelect_${id}`).value;
-            const mainStatus = (newStatus === 'Closed') ? 'Closed' : 'In Progress';
+        async function updateRecordStatus(recordId) {
+            const select = document.getElementById(`actionSelect_${recordId}`);
+            const newAction = select.value;
+            const btn = select.parentElement.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = '...';
             
             try {
-                const { error } = await _supabase.from('safety_reports').update({ 
-                    action_status: newStatus,
-                    status: mainStatus,
-                    updated_at: new Date().toISOString()
-                }).eq('id', id);
-
+                // Determine the overall status based on action
+                let newStatus = 'In Progress';
+                if (newAction === 'Closed') newStatus = 'Closed';
+                if (newAction === 'Open') newStatus = 'Open';
+                
+                const updateData = {
+                    action_status: newAction,
+                    status: newStatus
+                };
+                
+                const { error } = await _supabase
+                    .from('safety_reports')
+                    .update(updateData)
+                    .eq('id', recordId);
+                    
                 if (error) throw error;
-                alert('✅ Status Updated! This will now reflect on the Front-end Portal.');
-                fetchGlobalMetrics();
+                
+                // If "Create for RCA" or "Do RCA" → open RCA modal
+                if (newAction === 'Create for RCA' || newAction === 'Do RCA') {
+                    // Fetch current record to get existing RCA data
+                    const { data } = await _supabase.from('safety_reports').select('*').eq('id', recordId).single();
+                    if (data) {
+                        openRcaForRecord(recordId);
+                    }
+                }
+                
+                // If "Correction & Preventive Action" → open CAPA modal
+                if (newAction === 'Correction & Preventive Action') {
+                    openCapaForRecord(recordId);
+                }
+                
+                // Refresh the list
                 await fetchLiveSystemRecords();
-            } catch (err) {
-                alert('❌ Update Failed: ' + err.message);
+                fetchGlobalMetrics();
+            } catch(err) {
+                alert('Error updating status: ' + err.message);
             }
+            btn.disabled = false;
+            btn.textContent = 'Update';
         }
 
         // 🔬 OPEN RCA SUITE FOR A RECORD
@@ -1530,5 +1560,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e1a0ac1f7a13',t:'MTc4MzYyNjg3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189f0cdae7747ca',t:'MTc4MzYyNzQ5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a18a02af08417a19',t:'MTc4MzYyODIyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a18a0f65ff63ff71',t:'MTc4MzYyODc0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
