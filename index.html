@@ -1530,17 +1530,15 @@
         // ============================================================
 
         // 📋 1. VIEW LOGGED REPORTS - Fetch from safety_reports table
-                async function fetchLoggedReports() {
+                        async function fetchLoggedReports() {
             const container = document.getElementById('reportsLogSection');
             try {
                 const { data, error } = await _supabase.from('safety_reports').select('*').order('created_at', { ascending: False }).limit(5);
                 if (error) throw error;
-                if (!data || data.length === 0) {
-                    container.innerHTML = '<p class="text-[10px] text-center p-4 text-slate-400">No recent reports.</p>';
-                    return;
-                }
+                if (!data || data.length === 0) return;
+
                 container.innerHTML = data.map(r => {
-                    const statusColor = (r.status === 'Closed') ? 'emerald' : 'amber';
+                    const statusColor = r.status === 'Closed' ? 'emerald' : 'amber';
                     const icon = r.report_type === 'Near Miss' ? '⚠️' : (r.report_type === 'Hazard' ? '🔥' : '✅');
                     return `
                         <div class="flex items-center justify-between p-2 border-b border-gray-50 last:border-0">
@@ -1548,7 +1546,7 @@
                                 <span class="text-lg">${icon}</span>
                                 <div>
                                     <p class="text-[10px] font-bold text-slate-800">${r.report_type}</p>
-                                    <p class="text-[8px] text-slate-500">ID: #${r.id} • ${new Date(r.date_time).toLocaleDateString('en-IN')}</p>
+                                    <p class="text-[8px] text-slate-500">ID: #${r.id} • ${new Date(r.created_at).toLocaleDateString('en-IN')}</p>
                                 </div>
                             </div>
                             <span class="text-[8px] font-bold px-2 py-0.5 rounded-full bg-${statusColor}-100 text-${statusColor}-700">${r.action_status || r.status}</span>
@@ -2743,15 +2741,13 @@
             }
         }
         function closeReportingForm() { document.getElementById('reportingModal').classList.add('hidden'); }
-                async function handleFormSubmit(e) { 
+                        async function handleFormSubmit(e) { 
             e.preventDefault();
             
             const worker = document.getElementById('reportWorkerName').value;
             const empId = document.getElementById('reportEmpId').value;
-            const designation = document.getElementById('reportDesignation').value;
             const location = document.getElementById('reportLocation').value || "N/A";
             const dept = document.getElementById('reportDept').value || "N/A";
-            const dateTime = document.getElementById('reportDateTime').value;
             const description = document.getElementById('reportDesc').value;
             const action = document.getElementById('reportAction').value;
             const severity = document.getElementById('reportSeverity').value || "N/A";
@@ -2768,17 +2764,18 @@
                     report_type: activeReportType,
                     status: 'Open',
                     action_status: 'Open',
-                    date_time: dateTime,
                     submitted_at: new Date().toISOString()
                 }]);
                 if (error) throw error;
-                alert(`✅ Success! ${activeReportType} logged to Supabase.`);
+                alert(`✅ Success! ${activeReportType} has been securely logged to Vault.`);
             } catch (err) {
+                console.error('Supabase error:', err);
                 alert('❌ Database Error: ' + err.message);
             }
-
+            
             closeReportingForm();
             e.target.reset();
+            if(typeof fetchLoggedReports === 'function') fetchLoggedReports();
             document.getElementById('lookupStatus').innerText = "";
         }
         function openTslRules() { alert("TSL Life Saving Rules Loaded"); }
@@ -3107,5 +3104,5 @@ ${feedback}
         // to be rebuilt with a real modal (id="dmConductModal") and fields
         // #dmDate/#dmShift/#dmLocation/#dmAttendees/#dmTopics/#dmIssues/#dmActions/#dmConductedBy.
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e6378d02b1e7',t:'MTc4MzYyNzA2Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e6378d02b1e7',t:'MTc4MzYyNzA2Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189f3d40cf97a0d',t:'MTc4MzYyNzYyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
