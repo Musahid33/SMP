@@ -948,17 +948,16 @@
             container.innerHTML = `<p class="text-slate-500 italic animate-pulse text-[10px] text-center p-4">Accessing real-time vault...</p>`;
             
             try {
-                // Hum database se saari reports utha rahe hain
                 let query = _supabase.from('safety_reports').select('*');
                 
-                // Super Match: Use ilike for partial matching to avoid space/case issues
                 if(trackerSecondaryType) {
                     query = query.or(`report_type.ilike.%${currentActiveTrackerType}%,report_type.ilike.%${trackerSecondaryType}%`);
                 } else {
                     query = query.ilike('report_type', `%${currentActiveTrackerType}%`);
                 }
                 
-                const { data, error } = await query.order('created_at', { ascending: False });
+                // FIXED: 'false' is now lowercase for JavaScript
+                const { data, error } = await query.order('created_at', { ascending: false });
                 if (error) throw error;
 
                 if (!data || data.length === 0) {
@@ -1012,6 +1011,7 @@
                 if (typeof lucide !== 'undefined') lucide.createIcons();
                 
             } catch(err) {
+                console.error('Fetch Error:', err);
                 container.innerHTML = `<p class="text-rose-500 text-[10px] text-center p-4">⚠️ Database Sync Error: ${err.message}</p>`;
             }
         }
@@ -1560,5 +1560,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a18a0f65ff63ff71',t:'MTc4MzYyODc0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a18a150a88bb0cc7',t:'MTc4MzYyODk4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
