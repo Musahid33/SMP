@@ -1530,55 +1530,33 @@
         // ============================================================
 
         // 📋 1. VIEW LOGGED REPORTS - Fetch from safety_reports table
-        async function fetchLoggedReports() {
+                async function fetchLoggedReports() {
             const container = document.getElementById('reportsLogSection');
             try {
-                const { data, error } = await _supabase
-                    .from('safety_reports')
-                    .select('*')
-                    .order('id', { ascending: false })
-                    .limit(10);
+                const { data, error } = await _supabase.from('safety_reports').select('*').order('created_at', { ascending: False }).limit(5);
                 if (error) throw error;
                 if (!data || data.length === 0) {
-                    container.innerHTML = `
-                        <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1.5 border-b border-gray-100">
-                            <span id="logHeaderType">Type & ID</span> <span id="logHeaderStatus">Status</span>
-                        </div>
-                        <p class="text-[10px] text-slate-400 text-center py-3">No reports logged yet.</p>
-                    `;
+                    container.innerHTML = '<p class="text-[10px] text-center p-4 text-slate-400">No recent reports.</p>';
                     return;
                 }
-                let html = `
-                    <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-1.5 border-b border-gray-100">
-                        <span id="logHeaderType">Type & ID</span> <span id="logHeaderStatus">Status</span>
-                    </div>
-                `;
-                data.forEach(rec => {
-                    const statusColor = rec.status === 'Closed' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 
-                                       rec.status === 'In Progress' ? 'bg-amber-50 text-amber-600 border-amber-200' : 
-                                       'bg-red-50 text-red-600 border-red-200';
-                    const dateStr = rec.date_time ? new Date(rec.date_time).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'N/A';
-                    const typeIcon = rec.report_type === 'Near Miss' ? '⚠️' : 
-                                    rec.report_type === 'Hazard' ? '🔥' :
-                                    rec.report_type === 'UC/UA' ? '🔍' :
-                                    rec.report_type === 'Safe Observation' ? '✅' :
-                                    rec.report_type === 'Feedback' ? '📝' :
-                                    rec.report_type === 'Grievance' ? '😞' :
-                                    rec.report_type === 'Suggestion' ? '💡' :
-                                    rec.report_type === 'Speak Up' ? '🎤' : '📋';
-                    html += `
-                        <div class="flex justify-between items-center py-1.5 text-xs border-b border-gray-50 last:border-0">
-                            <div>
-                                <span class="font-bold text-slate-800 block">${typeIcon} ${rec.report_type}</span>
-                                <span class="text-[9px] text-slate-400">${rec.worker_name || 'Anonymous'} • ${dateStr}</span>
+                container.innerHTML = data.map(r => {
+                    const statusColor = (r.status === 'Closed') ? 'emerald' : 'amber';
+                    const icon = r.report_type === 'Near Miss' ? '⚠️' : (r.report_type === 'Hazard' ? '🔥' : '✅');
+                    return `
+                        <div class="flex items-center justify-between p-2 border-b border-gray-50 last:border-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">${icon}</span>
+                                <div>
+                                    <p class="text-[10px] font-bold text-slate-800">${r.report_type}</p>
+                                    <p class="text-[8px] text-slate-500">ID: #${r.id} • ${new Date(r.date_time).toLocaleDateString('en-IN')}</p>
+                                </div>
                             </div>
-                            <span class="text-[9px] font-black px-2 py-0.5 rounded border uppercase ${statusColor}">${rec.status || 'Open'}</span>
+                            <span class="text-[8px] font-bold px-2 py-0.5 rounded-full bg-${statusColor}-100 text-${statusColor}-700">${r.action_status || r.status}</span>
                         </div>
                     `;
-                });
-                container.innerHTML = html;
-            } catch(err) {
-                container.innerHTML = `<p class="text-[10px] text-rose-500">Error loading reports: ${err.message}</p>`;
+                }).join('');
+            } catch (err) {
+                console.error('Fetch error:', err);
             }
         }
 
@@ -2765,10 +2743,9 @@
             }
         }
         function closeReportingForm() { document.getElementById('reportingModal').classList.add('hidden'); }
-        async function handleFormSubmit(e) { 
+                async function handleFormSubmit(e) { 
             e.preventDefault();
             
-            // Collect all form data
             const worker = document.getElementById('reportWorkerName').value;
             const empId = document.getElementById('reportEmpId').value;
             const designation = document.getElementById('reportDesignation').value;
@@ -2778,216 +2755,28 @@
             const description = document.getElementById('reportDesc').value;
             const action = document.getElementById('reportAction').value;
             const severity = document.getElementById('reportSeverity').value || "N/A";
-            const photoInput = document.getElementById('reportPhoto');
             
-            // Check if photo is attached
-            const photoStatus = photoInput.files.length > 0 ? `📸 ${photoInput.files[0].name}` : "❌ No Photo";
-            
-            // Create summary based on report type
-            let summary = "";
-            
-            if (activeReportType === 'Near Miss') {
-                summary = `
-🎉 NEAR MISS REPORT LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-📍 Incident Details:
-   Location: ${location}
-   Department: ${dept}
-   Date/Time: ${dateTime}
-
-📝 Description:
-${description}
-
-⚡ Action Taken:
-${action ? action : "None specified"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Report securely stored in database!
-                `;
+            try {
+                const { error } = await _supabase.from('safety_reports').insert([{
+                    worker_name: worker,
+                    employee_id: empId,
+                    location: location,
+                    department: dept,
+                    description: description,
+                    immediate_action: action,
+                    severity_rating: severity,
+                    report_type: activeReportType,
+                    status: 'Open',
+                    action_status: 'Open',
+                    date_time: dateTime,
+                    submitted_at: new Date().toISOString()
+                }]);
+                if (error) throw error;
+                alert(`✅ Success! ${activeReportType} logged to Supabase.`);
+            } catch (err) {
+                alert('❌ Database Error: ' + err.message);
             }
-            else if (activeReportType === 'Hazard') {
-                summary = `
-⚠️ HAZARD REPORT LOGGED TO VAULT
 
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-🕐 Date/Time: ${dateTime}
-
-📝 Hazard Description:
-${description}
-
-⚠️ Severity Level: ${severity}
-
-⚡ Immediate Action Taken:
-${action ? action : "None yet"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Hazard report securely stored in database!
-                `;
-            }
-            else if (activeReportType === 'UC/UA') {
-                summary = `
-⚠️ UNSAFE CONDITION/ACT REPORT LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-📍 Location: ${location}
-🕐 Date/Time: ${dateTime}
-
-📝 Description of UC/UA:
-${description}
-
-⚡ Immediate Action Taken:
-${action ? action : "None yet"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Observation report securely stored in database!
-                `;
-            }
-            else if (activeReportType === 'Safe Observation') {
-                summary = `
-✅ SAFE OBSERVATION LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-📍 Location: ${location}
-🕐 Date/Time: ${dateTime}
-
-📝 Description of Safe Practice:
-${description}
-
-⚡ Remarks/Feedback:
-${action ? action : "None"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Safe observation securely stored in database!
-                `;
-            }
-            else if (activeReportType === 'Speak Up') {
-                // Check if anonymous submission is selected
-                const isAnonymous = document.getElementById('reportAnonymous').checked;
-                const displayName = isAnonymous ? "Anonymous" : worker;
-                const displayId = isAnonymous ? "PROTECTED" : empId;
-                const displayDesignation = isAnonymous ? "Not Disclosed" : designation;
-                
-                summary = `
-🎤 SPEAK UP CONCERN LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${displayName}
-   ID: ${displayId}
-   Designation: ${displayDesignation}
-   ${isAnonymous ? '🔒 Status: ANONYMOUS SUBMISSION' : ''}
-
-📍 Location: ${location}
-🕐 Date/Time: ${dateTime}
-
-🎤 Concern/Issue:
-${description}
-
-⚡ Suggested Action:
-${action ? action : "None"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Concern securely stored in database!
-                `;
-            }
-            else if (activeReportType.includes('Feedback') || ['PPE Feedback', 'Tool Tackles', 'Training Feedback', 'Grievance Feedback', 'Amenities Welfare', 'Observation Closing'].includes(activeReportType)) {
-                let feedbackEmoji = "💬";
-                if (activeReportType === 'PPE Feedback') feedbackEmoji = "👕";
-                else if (activeReportType === 'Tool Tackles') feedbackEmoji = "🔧";
-                else if (activeReportType === 'Training Feedback') feedbackEmoji = "📚";
-                else if (activeReportType === 'Grievance Feedback') feedbackEmoji = "😞";
-                else if (activeReportType === 'Amenities Welfare') feedbackEmoji = "🏢";
-                else if (activeReportType === 'Observation Closing') feedbackEmoji = "✅";
-                
-                summary = `
-${feedbackEmoji} ${activeReportType.toUpperCase()} LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-🕐 Date/Time: ${dateTime}
-
-📝 Feedback:
-${description}
-
-💭 Additional Comments:
-${action ? action : "None"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Feedback securely stored in database!
-                `;
-            }
-            else if (activeReportType.startsWith('Grievance -')) {
-                const grievanceType = activeReportType.replace('Grievance - ', '');
-                summary = `
-😞 ${grievanceType.toUpperCase()} GRIEVANCE LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-🕐 Date/Time: ${dateTime}
-
-📝 Grievance Details:
-${description}
-
-💭 Additional Information:
-${action ? action : "None"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Grievance securely stored in database!
-                `;
-            }
-            else if (activeReportType.includes('Suggestion')) {
-                summary = `
-💡 ${activeReportType.toUpperCase()} LOGGED TO VAULT
-
-👤 Employee Details:
-   Name: ${worker}
-   ID: ${empId}
-   Designation: ${designation}
-
-🕐 Date/Time: ${dateTime}
-
-💡 Suggestion:
-${description}
-
-💭 Additional Details:
-${action ? action : "None"}
-
-📸 Photo Status: ${photoStatus}
-
-✅ Suggestion securely stored in database!
-                `;
-            }
-            
-            alert(summary);
             closeReportingForm();
             e.target.reset();
             document.getElementById('lookupStatus').innerText = "";
@@ -3318,5 +3107,5 @@ ${feedback}
         // to be rebuilt with a real modal (id="dmConductModal") and fields
         // #dmDate/#dmShift/#dmLocation/#dmAttendees/#dmTopics/#dmIssues/#dmActions/#dmConductedBy.
     </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e6378d02b1e7',t:'MTc4MzYyNzA2Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
