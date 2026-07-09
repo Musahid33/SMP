@@ -881,16 +881,16 @@
             fetchGlobalMetrics();
         });
 
-        async function fetchGlobalMetrics() {
+                async function fetchGlobalMetrics() {
             try {
                 const { data, error } = await _supabase.from('safety_reports').select('status');
                 if (error) throw error;
                 if(data) {
                     document.getElementById('countTotal').innerText = data.length;
-                    document.getElementById('countProgress').innerText = data.filter(r => r.status === 'In Progress').length;
+                    document.getElementById('countProgress').innerText = data.filter(r => r.status === 'Open' || r.status === 'In Progress').length;
                     document.getElementById('countClosed').innerText = data.filter(r => r.status === 'Closed').length;
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('Metrics Error:', e); }
         }
 
         async function openInspectionTracker(type, secondType = "") {
@@ -943,7 +943,7 @@
             finally { btn.disabled = false; btn.textContent = 'Submit to Live Review Desk'; }
         }
 
-        async function fetchLiveSystemRecords() {
+                async function fetchLiveSystemRecords() {
             const container = document.getElementById('liveRecordsContainer');
             container.innerHTML = `<p class="text-slate-500 italic animate-pulse text-[10px]">Accessing real-time vault...</p>`;
             
@@ -955,7 +955,7 @@
                     query = query.eq('report_type', currentActiveTrackerType);
                 }
                 
-                const { data, error } = await query.order('id', { ascending: false });
+                const { data, error } = await query.order('created_at', { ascending: False });
                 if (error) throw error;
 
                 if (!data || data.length === 0) {
@@ -963,161 +963,68 @@
                     return;
                 }
 
-                // 📋 ROW-WISE DISPLAY: Each record shows full details + action controls
                 container.innerHTML = data.map(rec => {
                     let badgeColor = "bg-red-500/10 text-red-400 border-red-500/30";
                     if (rec.status === 'In Progress') badgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/30";
                     if (rec.status === 'Closed') badgeColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
 
                     const recordDate = rec.date_time || (rec.created_at ? new Date(rec.created_at).toLocaleString('en-IN') : 'N/A');
-                    
-                    // Determine action_status display
                     const actionStatus = rec.action_status || rec.status || 'Open';
-                    let actionBadgeColor = "bg-slate-500/10 text-slate-400";
-                    if (actionStatus === 'Open') actionBadgeColor = "bg-red-500/10 text-red-400";
-                    if (actionStatus === 'Work in Progress') actionBadgeColor = "bg-amber-500/10 text-amber-400";
-                    if (actionStatus === 'Closed') actionBadgeColor = "bg-emerald-500/10 text-emerald-400";
-                    if (actionStatus === 'Create for RCA' || actionStatus === 'Do RCA') actionBadgeColor = "bg-indigo-500/10 text-indigo-400";
-                    if (actionStatus === 'Correction & Preventive Action') actionBadgeColor = "bg-purple-500/10 text-purple-400";
-                    if (actionStatus === 'Verify') actionBadgeColor = "bg-sky-500/10 text-sky-400";
-
-                    // Photo display
-                    const photoHtml = rec.photo_base64 
-                        ? `<div class="mt-1"><img src="${rec.photo_base64}" class="w-full h-28 object-cover rounded-lg border border-slate-800" /></div>`
-                        : '';
 
                     return `
-                        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 shadow-inner text-left" data-record-id="${rec.id}">
-                            <!-- HEADER: Worker Info + Status Badge -->
+                        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 shadow-inner text-left">
                             <div class="flex justify-between items-start border-b border-slate-900 pb-1.5">
                                 <div>
-                                    <span class="font-black text-white text-[12px] block">${rec.worker_name || 'Anonymous Submission'}</span>
-                                    <span class="text-slate-500 text-[9px]">Emp ID: ${rec.employee_id || 'N/A'} • Dept: ${rec.department || 'N/A'}</span>
+                                    <span class="font-black text-white text-[12px] block">${rec.worker_name || 'Anonymous'}</span>
+                                    <span class="text-slate-500 text-[9px]">ID: ${rec.employee_id} • Dept: ${rec.department || 'N/A'}</span>
                                 </div>
-                                <span class="border px-2 py-0.5 rounded text-[8px] font-black uppercase ${badgeColor}">${rec.status || 'Open'}</span>
+                                <span class="border px-2 py-0.5 rounded text-[8px] font-black uppercase ${badgeColor}">${rec.status}</span>
                             </div>
-
-                            <!-- DETAILS: Location, Date, Description, Action -->
-                            <div class="grid grid-cols-1 gap-0.5 text-[9px] font-bold text-slate-400 bg-slate-900/40 p-1.5 rounded-lg">
-                                <div>📍 Location: <span class="text-slate-200">${rec.location || 'N/A'}</span></div>
-                                <div>🕐 Date/Time: <span class="text-slate-200">${recordDate}</span></div>
-                                ${rec.severity_rating && rec.severity_rating !== 'N/A' ? `<div class="text-rose-400">⚠️ Risk Severity: <span class="font-black underline">${rec.severity_rating}</span></div>` : ''}
+                            <div class="text-[9px] font-bold text-slate-400 bg-slate-900/40 p-1.5 rounded-lg">
+                                📍 Location: <span class="text-slate-200">${rec.location || 'N/A'}</span><br>
+                                🕐 Date/Time: <span class="text-slate-200">${new Date(rec.date_time).toLocaleString()}</span>
                             </div>
-
-                            <!-- DESCRIPTION & IMMEDIATE ACTION -->
                             <div class="space-y-1 text-[11px]">
                                 <p class="text-slate-300 leading-relaxed"><strong class="text-slate-500 text-[10px] block uppercase">📝 Description:</strong>${rec.description}</p>
                                 ${rec.immediate_action ? `<p class="text-emerald-400/90 bg-emerald-950/10 p-1.5 rounded border border-emerald-900/30 leading-tight"><strong class="text-emerald-600 text-[10px] block uppercase">⚡ Immediate Action Taken:</strong>${rec.immediate_action}</p>` : ''}
                             </div>
-
-                            <!-- PHOTO EVIDENCE -->
-                            ${photoHtml}
-
-                            <!-- CURRENT ACTION STATUS -->
-                            <div class="flex items-center gap-1.5 text-[10px]">
-                                <span class="text-slate-500 font-bold uppercase">🎯 Current Action:</span>
-                                <span class="border px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${actionBadgeColor}">${actionStatus}</span>
+                            <div class="flex items-center gap-1.5 text-[10px] pt-2">
+                                <span class="text-slate-500 font-bold uppercase">🎯 Status:</span>
+                                <span class="text-white font-bold">${actionStatus}</span>
                             </div>
-
-                            <!-- RCA DETAILS (if exists) -->
-                            ${rec.root_cause ? `
-                                <div class="bg-indigo-950/20 border border-indigo-900/30 p-2 rounded-lg text-[10px]">
-                                    <span class="text-indigo-400 font-black uppercase tracking-wider block text-[9px]">🔬 RCA Investigation:</span>
-                                    ${rec.why_why_analysis ? `<p class="text-slate-400 mt-1"><strong class="text-slate-500">5-Why Analysis:</strong><br>${rec.why_why_analysis.replace(/\n/g, '<br>')}</p>` : ''}
-                                    <p class="text-slate-400 mt-1"><strong class="text-slate-500">Root Cause:</strong> ${rec.root_cause}</p>
-                                    ${rec.corrective_action ? `<p class="text-emerald-400 mt-1"><strong class="text-emerald-500">✅ Corrective Action:</strong> ${rec.corrective_action}</p>` : ''}
-                                    ${rec.preventive_action ? `<p class="text-sky-400 mt-1"><strong class="text-sky-500">🛡️ Preventive Action:</strong> ${rec.preventive_action}</p>` : ''}
-                                </div>
-                            ` : ''}
-
-                            <!-- ACTION CONTROLS: Dropdown + Update Button -->
-                            <div class="pt-2 border-t border-slate-800/60 space-y-2">
-                                <div class="flex gap-2 items-end">
-                                    <div class="flex-1">
-                                        <label class="block text-[8px] font-bold text-slate-500 uppercase mb-0.5">Change Action / Status</label>
-                                        <select id="actionSelect_${rec.id}" class="w-full text-[10px] bg-slate-900 border border-slate-800 p-1.5 rounded text-white font-bold focus:outline-amber-500">
-                                            <option value="Open" ${actionStatus === 'Open' ? 'selected' : ''}>🔴 Open — Pending Review</option>
-                                            <option value="Work in Progress" ${actionStatus === 'Work in Progress' ? 'selected' : ''}>🟡 Work in Progress</option>
-                                            <option value="Closed" ${actionStatus === 'Closed' ? 'selected' : ''}>🟢 Closed — Resolved</option>
-                                            <option value="Create for RCA" ${actionStatus === 'Create for RCA' ? 'selected' : ''}>🔬 Create for RCA</option>
-                                            <option value="Do RCA" ${actionStatus === 'Do RCA' ? 'selected' : ''}>📋 Do RCA — Why-Why Investigation</option>
-                                            <option value="Correction & Preventive Action" ${actionStatus === 'Correction & Preventive Action' ? 'selected' : ''}>🛠️ CAPA Initiated</option>
-                                            <option value="Verify" ${actionStatus === 'Verify' ? 'selected' : ''}>✅ Verify — Awaiting Close-out</option>
-                                        </select>
-                                    </div>
-                                    <button onclick="updateRecordStatus(${rec.id})" class="bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] px-3 py-1.5 rounded-lg transition whitespace-nowrap cursor-pointer">
-                                        Update
-                                    </button>
-                                </div>
-                                <!-- RCA / CAPA Quick Action Buttons (shown when relevant) -->
-                                <div class="flex gap-1.5 flex-wrap">
-                                    ${actionStatus === 'Create for RCA' || actionStatus === 'Do RCA' ? `
-                                        <button onclick="openRcaForRecord(${rec.id})" class="flex-1 text-[9px] bg-indigo-600 hover:bg-indigo-500 text-white font-black py-1.5 rounded-lg transition cursor-pointer">
-                                            🔬 Open RCA Suite
-                                        </button>
-                                    ` : ''}
-                                    ${actionStatus === 'Correction & Preventive Action' ? `
-                                        <button onclick="openCapaForRecord(${rec.id})" class="flex-1 text-[9px] bg-purple-600 hover:bg-purple-500 text-white font-black py-1.5 rounded-lg transition cursor-pointer">
-                                            🛠️ Add CAPA Details
-                                        </button>
-                                    ` : ''}
-                                </div>
+                            <div class="pt-2 border-t border-slate-800/60 flex gap-2">
+                                <select id="actionSelect_${rec.id}" class="flex-1 text-[10px] bg-slate-900 border border-slate-800 p-1.5 rounded text-white focus:outline-amber-500">
+                                    <option value="Open" ${actionStatus === 'Open' ? 'selected' : ''}>Open</option>
+                                    <option value="Work in Progress" ${actionStatus === 'Work in Progress' ? 'selected' : ''}>Work in Progress</option>
+                                    <option value="Closed" ${actionStatus === 'Closed' ? 'selected' : ''}>Closed</option>
+                                </select>
+                                <button onclick="updateRecordStatus(${rec.id})" class="bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] px-3 py-1.5 rounded-lg transition">Update</button>
                             </div>
                         </div>
                     `;
                 }).join('');
-                lucide.createIcons();
-            } catch (err) { container.innerHTML = `<p class="text-rose-500 text-[10px]">Error: ${err.message}</p>`; }
+            } catch(err) {
+                container.innerHTML = `<p class="text-rose-500 text-[10px]">Error: ${err.message}</p>`;
+            }
         }
 
         // 🎯 UPDATE RECORD STATUS / ACTION
-        async function updateRecordStatus(recordId) {
-            const select = document.getElementById(`actionSelect_${recordId}`);
-            const newAction = select.value;
-            const btn = select.parentElement.querySelector('button');
-            btn.disabled = true;
-            btn.textContent = '...';
-            
+                async function updateRecordStatus(id) {
+            const newStatus = document.getElementById(`actionSelect_${id}`).value;
+            const mainStatus = (newStatus === 'Closed') ? 'Closed' : 'In Progress';
             try {
-                // Determine the overall status based on action
-                let newStatus = 'In Progress';
-                if (newAction === 'Closed') newStatus = 'Closed';
-                if (newAction === 'Open') newStatus = 'Open';
-                
-                const updateData = {
-                    action_status: newAction,
-                    status: newStatus
-                };
-                
-                const { error } = await _supabase
-                    .from('safety_reports')
-                    .update(updateData)
-                    .eq('id', recordId);
-                    
+                const { error } = await _supabase.from('safety_reports').update({ 
+                    action_status: newStatus,
+                    status: mainStatus,
+                    updated_at: new Date().toISOString()
+                }).eq('id', id);
                 if (error) throw error;
-                
-                // If "Create for RCA" or "Do RCA" → open RCA modal
-                if (newAction === 'Create for RCA' || newAction === 'Do RCA') {
-                    // Fetch current record to get existing RCA data
-                    const { data } = await _supabase.from('safety_reports').select('*').eq('id', recordId).single();
-                    if (data) {
-                        openRcaForRecord(recordId);
-                    }
-                }
-                
-                // If "Correction & Preventive Action" → open CAPA modal
-                if (newAction === 'Correction & Preventive Action') {
-                    openCapaForRecord(recordId);
-                }
-                
-                // Refresh the list
-                await fetchLiveSystemRecords();
+                alert('✅ Status Updated! Worker will see the new status on the portal.');
                 fetchGlobalMetrics();
-            } catch(err) {
-                alert('Error updating status: ' + err.message);
+                await fetchLiveSystemRecords();
+            } catch (err) {
+                alert('❌ Update Failed: ' + err.message);
             }
-            btn.disabled = false;
-            btn.textContent = 'Update';
         }
 
         // 🔬 OPEN RCA SUITE FOR A RECORD
@@ -1614,5 +1521,5 @@
             }
         });
     </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e1a0ac1f7a13',t:'MTc4MzYyNjg3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
