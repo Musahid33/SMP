@@ -881,7 +881,7 @@
             fetchGlobalMetrics();
         });
 
-                async function fetchGlobalMetrics() {
+                        async function fetchGlobalMetrics() {
             try {
                 const { data, error } = await _supabase.from('safety_reports').select('status');
                 if (error) throw error;
@@ -943,7 +943,7 @@
             finally { btn.disabled = false; btn.textContent = 'Submit to Live Review Desk'; }
         }
 
-                async function fetchLiveSystemRecords() {
+                        async function fetchLiveSystemRecords() {
             const container = document.getElementById('liveRecordsContainer');
             container.innerHTML = `<p class="text-slate-500 italic animate-pulse text-[10px]">Accessing real-time vault...</p>`;
             
@@ -964,11 +964,8 @@
                 }
 
                 container.innerHTML = data.map(rec => {
-                    let badgeColor = "bg-red-500/10 text-red-400 border-red-500/30";
-                    if (rec.status === 'In Progress') badgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/30";
-                    if (rec.status === 'Closed') badgeColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-
-                    const recordDate = rec.date_time || (rec.created_at ? new Date(rec.created_at).toLocaleString('en-IN') : 'N/A');
+                    let badgeColor = rec.status === 'Closed' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : (rec.status === 'In Progress' ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-red-500/10 text-red-400 border-red-500/30");
+                    const recordDate = rec.submitted_at ? new Date(rec.submitted_at).toLocaleString() : new Date(rec.created_at).toLocaleString();
                     const actionStatus = rec.action_status || rec.status || 'Open';
 
                     return `
@@ -976,21 +973,17 @@
                             <div class="flex justify-between items-start border-b border-slate-900 pb-1.5">
                                 <div>
                                     <span class="font-black text-white text-[12px] block">${rec.worker_name || 'Anonymous'}</span>
-                                    <span class="text-slate-500 text-[9px]">ID: ${rec.employee_id} • Dept: ${rec.department || 'N/A'}</span>
+                                    <span class="text-slate-500 text-[9px]">Emp ID: ${rec.employee_id || 'N/A'}</span>
                                 </div>
                                 <span class="border px-2 py-0.5 rounded text-[8px] font-black uppercase ${badgeColor}">${rec.status}</span>
                             </div>
                             <div class="text-[9px] font-bold text-slate-400 bg-slate-900/40 p-1.5 rounded-lg">
                                 📍 Location: <span class="text-slate-200">${rec.location || 'N/A'}</span><br>
-                                🕐 Date/Time: <span class="text-slate-200">${new Date(rec.date_time).toLocaleString()}</span>
+                                🕐 Date: <span class="text-slate-200">${recordDate}</span>
                             </div>
                             <div class="space-y-1 text-[11px]">
-                                <p class="text-slate-300 leading-relaxed"><strong class="text-slate-500 text-[10px] block uppercase">📝 Description:</strong>${rec.description}</p>
-                                ${rec.immediate_action ? `<p class="text-emerald-400/90 bg-emerald-950/10 p-1.5 rounded border border-emerald-900/30 leading-tight"><strong class="text-emerald-600 text-[10px] block uppercase">⚡ Immediate Action Taken:</strong>${rec.immediate_action}</p>` : ''}
-                            </div>
-                            <div class="flex items-center gap-1.5 text-[10px] pt-2">
-                                <span class="text-slate-500 font-bold uppercase">🎯 Status:</span>
-                                <span class="text-white font-bold">${actionStatus}</span>
+                                <p class="text-slate-300"><strong>📝 Desc:</strong> ${rec.description}</p>
+                                ${rec.immediate_action ? `<p class="text-emerald-400/90 bg-emerald-950/10 p-1.5 rounded border border-emerald-900/30"><strong>⚡ Action Taken:</strong> ${rec.immediate_action}</p>` : ''}
                             </div>
                             <div class="pt-2 border-t border-slate-800/60 flex gap-2">
                                 <select id="actionSelect_${rec.id}" class="flex-1 text-[10px] bg-slate-900 border border-slate-800 p-1.5 rounded text-white focus:outline-amber-500">
@@ -1009,7 +1002,7 @@
         }
 
         // 🎯 UPDATE RECORD STATUS / ACTION
-                async function updateRecordStatus(id) {
+                        async function updateRecordStatus(id) {
             const newStatus = document.getElementById(`actionSelect_${id}`).value;
             const mainStatus = (newStatus === 'Closed') ? 'Closed' : 'In Progress';
             try {
@@ -1019,7 +1012,7 @@
                     updated_at: new Date().toISOString()
                 }).eq('id', id);
                 if (error) throw error;
-                alert('✅ Status Updated! Worker will see the new status on the portal.');
+                alert('✅ Status Updated Successfully!');
                 fetchGlobalMetrics();
                 await fetchLiveSystemRecords();
             } catch (err) {
@@ -1521,5 +1514,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e1a0ac1f7a13',t:'MTc4MzYyNjg3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189e1a0ac1f7a13',t:'MTc4MzYyNjg3NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a189f0cdae7747ca',t:'MTc4MzYyNzQ5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
